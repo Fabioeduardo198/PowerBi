@@ -1,0 +1,20 @@
+TEXTO_DINAMICO_EXIBE_NOME_MES = 
+VAR MesSelecionado = SELECTEDVALUE( TB_DIM_CALENDAR[NM_MES] ) -- Inserir a coluna com o nome do mês do tabela calendario
+VAR MaxDataBase =
+    CALCULATE(
+        MAX( TB_DIM_CALENDAR[DT_DATA] ),
+        ALL( TB_DIM_CALENDAR )
+    )
+VAR MesMaisRecente =
+    CALCULATE(
+        SELECTEDVALUE( TB_DIM_CALENDAR[NM_MES] ),
+        FILTER( ALL( TB_DIM_CALENDAR ), TB_DIM_CALENDAR[DT_DATA] = MaxDataBase )
+    )
+VAR Resultado = "TESTE " &
+    IF( NOT( ISBLANK( MesSelecionado ) ), MesSelecionado, MesMaisRecente )
+
+RETURN
+Resultado
+
+
+
