@@ -1,0 +1,82 @@
+// CALENDARIO M
+
+let
+    // Definindo o intervalo de datas
+    DataInicial = List.Min(TB_FAT_PARAMETRO_688[DT_DATA]),
+    DataFinal   = List.Max(TB_FAT_PARAMETRO_688[DT_DATA]),
+    Dias = Duration.Days(DataFinal - DataInicial),// + 1,
+    ListaDatas = List.Dates(DataInicial, Dias, #duration(1,0,0,0)),
+
+    // Criando a tabela com a coluna de datas
+    TabelaDatas = Table.FromList(ListaDatas, Splitter.SplitByNothing(), {"DT_DATA"}),
+
+    // Adicionando colunas de data como Ano, Mês, Dia
+    TabelaComColunas = Table.TransformColumnTypes(
+        Table.AddColumn(
+            Table.AddColumn(
+                Table.AddColumn(TabelaDatas, "DT_ANO", each Date.Year([DT_DATA])),
+            "DT_MES", each Date.Month([DT_DATA])),
+        "DT_DIA", each Date.Day([DT_DATA])),
+
+        {{"DT_DATA", type date}, {"DT_ANO", Int64.Type}, {"DT_MES", Int64.Type}, {"DT_DIA", Int64.Type}}
+    ),
+
+    // Lista de feriados nacionais fixos
+    FeriadosFixos = {
+         {1, 1}     // Confraternização Universal
+        ,{4, 21}    // Tiradentes
+        ,{5, 1}     // Dia do Trabalho
+        ,{9, 7}     // Independência do Brasil
+        ,{10, 12}   // Nossa Sr.a Aparecida - Padroeira do Brasil
+        ,{11, 2}    // Finados
+        ,{11, 15}   // Proclamação da República
+        ,{11, 20}   // Dia Nacional de Zumbi e da Consciência Negra
+        ,{12, 25}   // Natal
+        },
+
+    // Adicionando coluna de verificação de feriado
+    TabelaComFeriados = Table.AddColumn(
+        TabelaComColunas,
+        "FERIADO",
+        each List.Contains(FeriadosFixos, {Date.Month([DT_DATA]), Date.Day([DT_DATA])}),
+        type logical
+    ),
+
+    // Adicionando colunas adicionais
+    #"Nome do Mês Inserido"        = Table.AddColumn(TabelaComFeriados, 			"NM_MES", 			each Date.MonthName([DT_DATA]), 	type text),
+    #"Mês Inserido"                = Table.AddColumn(#"Nome do Mês Inserido", 		"NR_MES", 			each Date.Month([DT_DATA]), 		Int64.Type),
+    #"Semana do Ano Inserida"      = Table.AddColumn(#"Mês Inserido", 				"NR_SEMANA_ANO", 	each Date.WeekOfYear([DT_DATA]), 	Int64.Type),
+    #"Semana do Mês Inserida"      = Table.AddColumn(#"Semana do Ano Inserida", 	"NR_SEMANA_MES", 	each Date.WeekOfMonth([DT_DATA]), 	Int64.Type),
+    #"Início da Semana Inserido"   = Table.AddColumn(#"Semana do Mês Inserida", 	"DT_INICIO_SEMANA", each Date.StartOfWeek([DT_DATA]), 	type date),
+    #"Fim da Semana Inserido"      = Table.AddColumn(#"Início da Semana Inserido", 	"DT_FIM_SEMANA", 	each Date.EndOfWeek([DT_DATA]), 	type date),
+    #"Dia da Semana Inserido"      = Table.AddColumn(#"Fim da Semana Inserido", 	"NR_DIA_SEMANA", 	each Date.DayOfWeek([DT_DATA]), 	Int64.Type),
+    #"Dia do Ano Inserido"         = Table.AddColumn(#"Dia da Semana Inserido", 	"NR_DIA_ANO", 		each Date.DayOfYear([DT_DATA]), 	Int64.Type),
+    #"Nome do Dia Inserido"        = Table.AddColumn(#"Dia do Ano Inserido", 		"NM_NOME_DIA", 		each Date.DayOfWeekName([DT_DATA]), type text),
+
+
+    // Adiciona FATOR_DIA
+    #"Fator Dia Inserido" = Table.AddColumn(
+        #"Nome do Dia Inserido",
+        "FATOR_DIA",
+        each 
+            if [FERIADO] then 0.4
+            else if Date.DayOfWeek([DT_DATA]) = 0 then 0.4 // Domingo
+            else if Date.DayOfWeek([DT_DATA]) = 6 then 0.6 // Sábado 
+            else 1.0,
+        type number
+    ),
+
+    // Adiciona FATOR_SEMANA partindo da etapa anterior
+    #"Fator Semana Inserido" = Table.AddColumn(
+        #"Fator Dia Inserido",
+        "FATOR_SEMANA",
+        each 
+            if [FERIADO] then "FDS"
+            else if Date.DayOfWeek([DT_DATA]) = 0 then "FDS" // Domingo
+            else if Date.DayOfWeek([DT_DATA]) = 6 then "FDS" // Sábado 
+            else "SEMANA",
+        type text
+    ),
+    #"Colunas Renomeadas" = Table.RenameColumns(#"Fator Semana Inserido",{{"FATOR_DIA", "NR_FATOR_DIA"}, {"FATOR_SEMANA", "NM_FATOR_SEMANA"}})
+in
+    #"Colunas Renomeadas"
