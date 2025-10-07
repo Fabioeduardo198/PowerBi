@@ -2,8 +2,10 @@
 
 let
     // Definindo o intervalo de datas
-    DataInicial = List.Min(TB_FAT_PARAMETRO_688[DT_DATA]),
-    DataFinal   = List.Max(TB_FAT_PARAMETRO_688[DT_DATA]),
+    DataInicial = #date(2025, 1, 1), // data inserida de forma manual, esse modelo ignora datas anteriores de todas as tabelas
+    DataFinal   =Date.From(DateTime.LocalNow()),
+    //DataInicial =List.Min(TB_CLIENTE_ETAPA_KPI[DT_DATA_INI]),// Caso o CALENDARIO seja baseado em uma tabela, inserir aqui para calcular menor data
+	//DataFinal =List.Max(TB_CLIENTE_ETAPA_KPI[DT_DATA_INI]), // Caso o CALENDARIO seja baseado em uma tabela, inserir aqui para calcular maior data
     Dias = Duration.Days(DataFinal - DataInicial),// + 1,
     ListaDatas = List.Dates(DataInicial, Dias, #duration(1,0,0,0)),
 
@@ -43,7 +45,7 @@ let
     ),
 
     // Adicionando colunas adicionais
-    #"Nome do Mês Inserido"        = Table.AddColumn(TabelaComFeriados, 			"NM_MES", 			each Date.MonthName([DT_DATA]), 	type text),
+    #"Nome do Mês Inserido"        = Table.AddColumn(TabelaComFeriados,  "NM_MES",   each Text.Upper(Date.MonthName([DT_DATA])),  type text),
     #"Mês Inserido"                = Table.AddColumn(#"Nome do Mês Inserido", 		"NR_MES", 			each Date.Month([DT_DATA]), 		Int64.Type),
     #"Semana do Ano Inserida"      = Table.AddColumn(#"Mês Inserido", 				"NR_SEMANA_ANO", 	each Date.WeekOfYear([DT_DATA]), 	Int64.Type),
     #"Semana do Mês Inserida"      = Table.AddColumn(#"Semana do Ano Inserida", 	"NR_SEMANA_MES", 	each Date.WeekOfMonth([DT_DATA]), 	Int64.Type),
@@ -51,17 +53,31 @@ let
     #"Fim da Semana Inserido"      = Table.AddColumn(#"Início da Semana Inserido", 	"DT_FIM_SEMANA", 	each Date.EndOfWeek([DT_DATA]), 	type date),
     #"Dia da Semana Inserido"      = Table.AddColumn(#"Fim da Semana Inserido", 	"NR_DIA_SEMANA", 	each Date.DayOfWeek([DT_DATA]), 	Int64.Type),
     #"Dia do Ano Inserido"         = Table.AddColumn(#"Dia da Semana Inserido", 	"NR_DIA_ANO", 		each Date.DayOfYear([DT_DATA]), 	Int64.Type),
-    #"Nome do Dia Inserido"        = Table.AddColumn(#"Dia do Ano Inserido", 		"NM_NOME_DIA", 		each Date.DayOfWeekName([DT_DATA]), type text),
+    #"Nome do Dia Inserido"        = Table.AddColumn(#"Dia do Ano Inserido", 		"NM_NOME_DIA", 		each Text.Upper(Date.DayOfWeekName([DT_DATA])), type text),
 
 
-    // Adiciona FATOR_DIA
-    #"Fator Dia Inserido" = Table.AddColumn(
+/*
+    // Adicionando a coluna de FATOR_DIA com base em valores numéricos de dia da semana
+    #"Fator Inserido" = Table.AddColumn(
         #"Nome do Dia Inserido",
         "FATOR_DIA",
         each 
             if [FERIADO] then 0.4
             else if Date.DayOfWeek([DT_DATA]) = 0 then 0.4 // Domingo
             else if Date.DayOfWeek([DT_DATA]) = 6 then 0.6 // Sábado 
+            else 1.0,
+        type number
+    ),
+    #"Colunas Renomeadas" = Table.RenameColumns(#"Fator Inserido",{{"FATOR_DIA", "NR_FATOR_DIA"}})*/
+
+    // Adiciona FATOR_DIA (calcula o valor % do dia, usado para calcular D.U. Dia útil)
+    #"Fator Dia Inserido" = Table.AddColumn(
+        #"Nome do Dia Inserido",
+        "FATOR_DIA",
+        each 
+            if [FERIADO] then 0.25
+            else if Date.DayOfWeek([DT_DATA]) = 0 then 0.25 // Domingo
+            else if Date.DayOfWeek([DT_DATA]) = 6 then 0.5 // Sábado 
             else 1.0,
         type number
     ),
@@ -77,6 +93,10 @@ let
             else "SEMANA",
         type text
     ),
-    #"Colunas Renomeadas" = Table.RenameColumns(#"Fator Semana Inserido",{{"FATOR_DIA", "NR_FATOR_DIA"}, {"FATOR_SEMANA", "NM_FATOR_SEMANA"}})
+    #"Colunas Renomeadas" = Table.RenameColumns(#"Fator Semana Inserido",{{"FATOR_DIA", "NR_FATOR_DIA"}, {"FATOR_SEMANA", "NM_FATOR_SEMANA"}}),
+    #"Nome do Mês Inserido1" = Table.AddColumn(#"Colunas Renomeadas",  "NM_MES_ANO",
+    each Text.Upper(Text.Start(Date.MonthName([DT_DATA]), 3)) & "/" & Text.From(Date.Year([DT_DATA])), // MMM/YYYY
+    type text
+)
 in
-    #"Colunas Renomeadas"
+    #"Nome do Mês Inserido1"
