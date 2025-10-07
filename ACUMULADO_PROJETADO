@@ -1,0 +1,64 @@
+VALOR_ACUMULADO_PROJETADO = 
+
+-- Essa medida soma valores por mes onde:
+-- Soma valores para meses que já passaram 
+-- Projeta o valor com base na quantidade de dias corridos do mês atual até o encerramento
+
+VAR MesAtual = MONTH(TODAY())
+VAR AnoAtual = YEAR(TODAY())
+VAR DataLinha = MAX(TB_DIM_CALENDAR[DT_DATA])   -- Data do calendário
+VAR MesLinhaTempo = MONTH(DataLinha)
+VAR AnoLinhaTempo = YEAR(DataLinha)
+
+-- Acumulado de ocorrências no mês até hoje (valor base)
+VAR VendasMesAtual =
+    CALCULATE(
+        [MEDIDA_VALOR_ACUMULADO_PROJETADO],  -- valor a ser mostrado / projetado
+        FILTER(
+            ALL(TB_DIM_CALENDAR),
+            MONTH(TB_DIM_CALENDAR[DT_DATA]) = MesAtual
+            && YEAR(TB_DIM_CALENDAR[DT_DATA]) = AnoAtual
+            && TB_DIM_CALENDAR[DT_DATA] <= TODAY()
+        )
+    )
+
+-- Soma do NR_FATOR_DIA acumulado no mês até hoje
+VAR FatorAcumuladoAteHoje =
+    CALCULATE(
+        SUM(TB_DIM_CALENDAR[NR_FATOR_DIA]),    -- Essa coluna aplica peso diferente para cada dia (normalmente usado para dias com pesos diferentes na soma de valores)
+        FILTER(
+            ALL(TB_DIM_CALENDAR),
+            MONTH(TB_DIM_CALENDAR[DT_DATA]) = MesAtual
+            && YEAR(TB_DIM_CALENDAR[DT_DATA]) = AnoAtual
+            && TB_DIM_CALENDAR[DT_DATA] < TODAY()
+        )
+    )
+
+-- Soma do NR_FATOR_DIA para o mês completo
+VAR FatorTotalMes =
+    CALCULATE(
+        SUM(TB_DIM_CALENDAR[NR_FATOR_DIA]), -- Essa coluna aplica peso diferente para cada dia (normalmente usado para dias com pesos diferentes na soma de valores)
+        FILTER(
+            ALL(TB_DIM_CALENDAR),
+            MONTH(TB_DIM_CALENDAR[DT_DATA]) = MesAtual
+            && YEAR(TB_DIM_CALENDAR[DT_DATA]) = AnoAtual
+        )
+    )
+
+-- Taxa por unidade de fator dia (média calculada usando NR_FATOR_DIA)
+VAR TaxaPorFator =
+    IF(
+        FatorAcumuladoAteHoje > 0,
+        DIVIDE(VendasMesAtual, FatorAcumuladoAteHoje, 0),
+        0
+    )
+
+-- Projeção do mês aplicando a taxa ao total do fator do mês
+VAR ProjecaoMesAtual = TaxaPorFator * FatorTotalMes
+
+RETURN
+IF(
+    MesLinhaTempo = MesAtual && AnoLinhaTempo = AnoAtual,
+    ProjecaoMesAtual,
+    CALCULATE([MEDIDA_VALOR_ACUMULADO_PROJETADO])  -- valor a ser mostrado / projetado
+)
