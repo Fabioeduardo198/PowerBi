@@ -1,0 +1,11 @@
+// Insere data e hora da atualização do arquivo, independe de valores de bases e ou tabelas.
+//     Considera remoção de fusohorario UTC, usado -3 (Brasil)
+
+
+let
+    Source = DateTimeZone.RemoveZone(
+        DateTimeZone.SwitchZone(DateTimeZone.UtcNow(), -3, 0)
+    ),
+    TableOut = #table(type table [LastRefresh=datetime], {{ Source }})
+in
+    TableOut
