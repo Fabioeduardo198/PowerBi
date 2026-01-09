@@ -6,6 +6,6 @@ let
     Source = DateTimeZone.RemoveZone(
         DateTimeZone.SwitchZone(DateTimeZone.UtcNow(), -3, 0)
     ),
-    TableOut = #table(type table [LastRefresh=datetime], {{ Source }})
+    TableOut = #table(type table [DTTM_LAST_REFRESH=datetime], {{ Source }})
 in
     TableOut
