@@ -1,0 +1,24 @@
+CONGRATS = 
+ "Bem-vindo, " & 
+
+// Separe o texto antes do delimitador "@" e busque na tabela DimUsuarios[re_colaborador] e mostre o valor DimUsuarios[nm_colaborador]
+
+
+VAR upnRaw = USERPRINCIPALNAME()
+VAR upn = LOWER( TRIM( upnRaw ) )
+VAR posArroba = SEARCH("@", upn, 1, BLANK())
+VAR login =
+    IF(
+        ISBLANK(posArroba),
+        upn,                     -- se não encontrar "@", usa tudo
+        LEFT(upn, posArroba - 1) -- parte antes do "@"
+    )
+RETURN
+COALESCE(
+    LOOKUPVALUE(
+        DimUsuarios[nm_colaborador],
+        DimUsuarios[re_colaborador], login
+    ),
+    BLANK()
+)
+
