@@ -1,0 +1,26 @@
+CONGRATS2 = 
+VAR upnRaw = USERPRINCIPALNAME()
+VAR upn = LOWER(TRIM(upnRaw))
+VAR posArroba = SEARCH("@", upn, 1, BLANK())
+VAR login =
+    IF(
+        ISBLANK(posArroba),
+        upn,
+        LEFT(upn, posArroba - 1)
+    )
+VAR nomeColaborador =
+    LOOKUPVALUE(
+        DimUsuarios[nm_colaborador],           // INSERIR AQUI A COLUNA COM O NOME DO USUARIO
+        DimUsuarios[re_colaborador],           // INSERIR AQUI A COLUNA COM A MATRICULA DO USUARIO
+        login
+    )
+VAR horaAtual = HOUR(NOW())
+VAR saudacao =
+    SWITCH(
+        TRUE(),
+        horaAtual >= 6 && horaAtual < 12, "Bom dia",
+        horaAtual >= 12 && horaAtual < 18, "Boa tarde",
+        "Boa noite"
+    )
+RETURN
+    saudacao & ", " & nomeColaborador
